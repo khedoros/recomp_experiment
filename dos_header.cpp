@@ -1,13 +1,10 @@
-#include<iostream>
 #include<fstream>
 #include<stdint.h>
 #include<assert.h>
 #include<vector>
 
-extern "C" {
-#include "disasm/disasm.h"
-#include "disasm/string.h"
-}
+//include for libudis86
+#include<udis86.h>
 
 using namespace std;
 
@@ -72,22 +69,15 @@ int main(int argc, char *argv[]) {
     in.seekg(h.header_para_size * 0x10, ios::beg);
     in.read(reinterpret_cast<char *>(&bin[0]), bin.size());
 
-    uint8_t * cur_data = &bin[0];
-    uint8_t * base_data = &bin[0];
-    uint8_t * out_dat_buf = NULL;
     size_t offset = h.header_para_size * 0x10;
-    uint32_t bitness = USE16;
-    char outbuff[64] = {0};
     
-    while(cur_data < base_data + size) { //while EOF hasn't been reached
-       printf("%02x %02x %02x %02x %02x  ", *cur_data, *(cur_data+1),*(cur_data+2),*(cur_data+3),*(cur_data+4));
-       out_dat_buf = disasm((uint8 *)cur_data, outbuff, bitness, offset + ( cur_data - base_data) );
-       if ( !out_dat_buf ) {
-           fprintf(stderr, "error: unknown opcode!\nstring: 0x%x 0x%x 0x%x 0x%x 0x%x\n", *cur_data++, *cur_data++, *cur_data++, *cur_data++, *cur_data);
-           return 1;
-       }
-       printf("%s\n", outbuff);
-       cur_data = out_dat_buf;
+    ud_t ud_obj;
+    ud_init(&ud_obj);
+    ud_set_input_buffer(&ud_obj, &bin[0], bin.size());
+    ud_set_mode(&ud_obj, 16);
+    ud_set_syntax(&ud_obj, UD_SYN_INTEL);
+    while (ud_disassemble(&ud_obj)) {
+        printf("\t%08lx %s\n", ud_insn_off(&ud_obj), ud_insn_asm(&ud_obj));
     }
 
     return 0;
